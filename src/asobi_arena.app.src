@@ -1,0 +1,17 @@
+%% -*- mode: erlang;erlang-indent-level: 4;indent-tabs-mode: nil -*-
+{application, asobi_arena, [
+    {description, "Multiplayer arena demo built on Asobi game backend"},
+    {vsn, git},
+    {registered, []},
+    {mod, {asobi_arena_app, []}},
+    {included_applications, []},
+    {applications, [
+        kernel,
+        stdlib,
+        asobi
+    ]},
+    {env, []},
+    {modules, []},
+    {licenses, ["Apache-2.0"]},
+    {links, [{"GitHub", "https://github.com/widgrensit/asobi-arena"}]}
+]}.

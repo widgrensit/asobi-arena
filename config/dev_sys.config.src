@@ -1,0 +1,49 @@
+%% -*- mode: erlang;erlang-indent-level: 4;indent-tabs-mode: nil -*-
+
+[
+    {kernel, [
+        {logger_level, debug},
+        {logger, [
+            {handler, default, logger_std_h, #{
+                formatter =>
+                    {nova_jsonlogger, #{
+                        map_depth => 3,
+                        term_depth => 50
+                    }}
+            }}
+        ]}
+    ]},
+    {nova, [
+        {use_stacktrace, true},
+        {environment, dev},
+        {cowboy_configuration, #{
+            port => 8080
+        }},
+        {dev_mode, true},
+        {bootstrap_application, asobi_arena},
+        {plugins, [
+            {pre_request, nova_request_plugin, #{decode_json_body => true}},
+            {pre_request, nova_cors_plugin, #{
+                allow_origins => [~"*"],
+                allow_methods => [~"GET", ~"POST", ~"PUT", ~"DELETE", ~"OPTIONS"],
+                allow_headers => [~"content-type", ~"authorization"]
+            }}
+        ]}
+    ]},
+    {pg_types, [{uuid_format, string}]},
+    {pgo, #{
+        default_pool => #{
+            host => "127.0.0.1",
+            port => 5432,
+            database => "asobi_arena_dev",
+            user => "postgres",
+            password => "postgres",
+            pool_size => 10
+        }
+    }},
+    {asobi, [
+        {game_modes, #{
+            ~"arena" => asobi_arena_game
+        }}
+    ]}
+].
