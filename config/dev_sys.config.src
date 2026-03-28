@@ -42,7 +42,7 @@
         }
     }},
     {shigoto, [
-        {pool, default}
+        {pool, default_pool}
     ]},
     {asobi, [
         {game_modes, #{
