@@ -17,25 +17,25 @@
         {use_stacktrace, true},
         {environment, dev},
         {cowboy_configuration, #{
-            port => 8080
+            port => 8084
         }},
         {dev_mode, true},
         {bootstrap_application, asobi_arena},
         {json_lib, json}
     ]},
-    {pg_types, [{uuid_format, string}]},
+    {kura, [
+        {repo, asobi_repo},
+        {host, "localhost"},
+        {port, 5436},
+        {database, "asobi_arena_dev"},
+        {user, "postgres"},
+        {password, "postgres"},
+        {pool_size, 10}
+    ]},
     {shigoto, [
-        {repo, asobi_repo}
+        {pool, asobi_repo}
     ]},
     {asobi, [
-        {asobi_repo, #{
-            database => <<"asobi_arena_dev">>,
-            hostname => <<"localhost">>,
-            port => 5432,
-            username => <<"postgres">>,
-            password => <<"postgres">>,
-            pool_size => 10
-        }},
         {plugins, [
             {pre_request, nova_request_plugin, #{
                 decode_json_body => true,
@@ -58,5 +58,8 @@
             refresh_ttl => 2592000
         }}
     ]},
-    {pg, [{scope, [nova_scope, arizona_pubsub, asobi_presence, asobi_chat]}]}
+    {asobi_arena, [
+        {nova_apps, [asobi]}
+    ]},
+    {pg, [{scope, [nova_scope, arizona_pubsub]}]}
 ].

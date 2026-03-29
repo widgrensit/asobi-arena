@@ -53,7 +53,7 @@ async def register(client: httpx.AsyncClient, player: Player) -> bool:
         "password": player.password,
         "display_name": f"Player {player.index}",
     })
-    if r.status_code == 200:
+    if r.status_code in (200, 201):
         data = r.json()
         player.player_id = data["player_id"]
         player.token = data["session_token"]
@@ -312,9 +312,19 @@ async def phase_matchmaking(players):
     # Queue all players
     tickets = []
     for p in connected:
-        ticket = await ws_matchmaker_add(p, "arena")
-        if ticket:
-            tickets.append(ticket)
+        try:
+            ticket = await ws_matchmaker_add(p, "arena")
+            if ticket:
+                tickets.append(ticket)
+        except Exception:
+            # WS may have closed during earlier phases, reconnect
+            if await ws_connect_player(p):
+                try:
+                    ticket = await ws_matchmaker_add(p, "arena")
+                    if ticket:
+                        tickets.append(ticket)
+                except Exception:
+                    pass
     print(f"  Queued {len(tickets)} players for matchmaking")
 
     # Wait for matches to form
@@ -329,6 +339,101 @@ async def phase_matchmaking(players):
         if m.get("type") == "match.matched"
     )
     print(f"  Players matched: {matched}")
+
+
+async def phase_gameplay(players):
+    """Simulate actual gameplay: players move, shoot, chat during matches."""
+    print("\n[Phase 7] Gameplay simulation...")
+    connected = [p for p in players if p.ws]
+    if not connected:
+        print("  No connected players, skipping")
+        return
+
+    # First, ensure everyone is matched by waiting for match events
+    await asyncio.gather(*[ws_drain(p, 0.5) for p in connected])
+
+    # Find players that received match events
+    in_match = []
+    for p in connected:
+        for m in p.ws_messages:
+            if m.get("type") in ("match.matched", "match.state"):
+                in_match.append(p)
+                break
+
+    if not in_match:
+        # No matches formed yet — use all connected players to send inputs anyway
+        in_match = connected
+    print(f"  Players in game: {len(in_match)}")
+
+    # Simulate game ticks — each player sends movement + occasional shots
+    TICKS = 30
+    TICK_INTERVAL = 0.1  # 100ms between inputs
+    directions = ["up", "down", "left", "right"]
+    kills = {p.username: 0 for p in in_match}
+    shots_fired = 0
+    moves_sent = 0
+
+    async def player_loop(player):
+        nonlocal shots_fired, moves_sent
+        for tick in range(TICKS):
+            if not player.ws:
+                break
+            try:
+                # Random movement
+                input_data = {d: random.random() > 0.5 for d in directions}
+
+                # Occasionally shoot at a random position
+                if random.random() > 0.6:
+                    input_data["shoot"] = True
+                    input_data["aim_x"] = random.randint(50, 750)
+                    input_data["aim_y"] = random.randint(50, 550)
+                    shots_fired += 1
+
+                await ws_send(player.ws, "match.input", input_data)
+                moves_sent += 1
+
+                # Occasionally send a chat taunt
+                if tick == 15 and random.random() > 0.7:
+                    taunts = ["Nice shot!", "Watch out!", "GG", "Behind you!", "Let's go!"]
+                    await ws_send(player.ws, "chat.send", {
+                        "channel_id": "match_chat",
+                        "content": random.choice(taunts),
+                    })
+
+                await asyncio.sleep(TICK_INTERVAL)
+            except Exception:
+                break
+
+    # Run all player loops concurrently
+    await asyncio.gather(*[player_loop(p) for p in in_match])
+    print(f"  Inputs sent: {moves_sent} moves, {shots_fired} shots")
+
+    # Drain final game state messages
+    await asyncio.gather(*[ws_drain(p, 1.0) for p in in_match])
+
+    # Count game events received
+    state_updates = 0
+    match_events = 0
+    for p in in_match:
+        for m in p.ws_messages:
+            msg_type = m.get("type", "")
+            if msg_type == "match.state":
+                state_updates += 1
+            elif msg_type.startswith("match."):
+                match_events += 1
+
+    print(f"  State updates received: {state_updates}")
+    print(f"  Match events received: {match_events}")
+
+    # Send heartbeats to confirm connections are still alive
+    alive = 0
+    for p in in_match:
+        try:
+            if await ws_heartbeat(p):
+                alive += 1
+        except Exception:
+            pass
+    print(f"  Players still connected after game: {alive}/{len(in_match)}")
 
 
 async def phase_admin(client):
@@ -399,7 +504,7 @@ async def main():
             ("WebSocket", lambda: phase_websocket(players)),
             ("Chat", lambda: phase_chat(players)),
             ("Matchmaking", lambda: phase_matchmaking(players)),
-            ("Admin", lambda: phase_admin(client)),
+            ("Gameplay", lambda: phase_gameplay(players)),
         ]
 
         for name, phase_fn in phases:
