@@ -9,7 +9,7 @@ Exercises the full stack:
 
 Usage:
     docker-compose up -d
-    rebar3 shell  # start asobi-arena
+    rebar3 shell  # start asobi_arena
     python3 scripts/simulate.py [--players 20] [--base-url http://localhost:8082]
 """
 
@@ -389,7 +389,7 @@ async def main():
             print(f"\nHealth check: ok")
         except Exception as e:
             print(f"\nHealth check FAILED: {e}")
-            print("Is asobi-arena running?")
+            print("Is asobi_arena running?")
             return
 
         phases = [
