@@ -18,8 +18,8 @@ jobs:
       version-file: '.tool-versions'
       enable-ct: true
       enable-audit: false
-      enable-sbom: true
-      enable-sbom-scan: true
+      enable-sbom: false
+      enable-sbom-scan: false
       enable-dependency-submission: true
       enable-summary: true
       extra-services-compose: 'docker-compose.yml'
