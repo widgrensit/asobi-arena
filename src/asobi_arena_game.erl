@@ -129,8 +129,9 @@ maybe_shoot(
                 vy => (Dy / Len) * ?PROJECTILE_SPEED,
                 owner => PlayerId
             },
-            {State#{projectiles => [Proj | Projs], next_proj_id => NextId + 1},
-                Player#{shoot_cd => ?SHOOT_COOLDOWN}};
+            {State#{projectiles => [Proj | Projs], next_proj_id => NextId + 1}, Player#{
+                shoot_cd => ?SHOOT_COOLDOWN
+            }};
         false ->
             {State, Player}
     end;
@@ -146,36 +147,37 @@ move_projectiles(Projs) ->
      || P <- Projs
     ].
 
+check_collisions([], Players) ->
+    {[], Players};
 check_collisions(Projs, Players) ->
-    lists:foldl(
-        fun(Proj, {AccProjs, AccPlayers}) ->
-            case hit_player(Proj, AccPlayers) of
-                {hit, HitId, AccPlayers1} ->
-                    Owner = maps:get(owner, Proj),
-                    AccPlayers2 =
-                        case maps:find(Owner, AccPlayers1) of
-                            {ok, #{hp := Hp}} when Hp > 0 ->
-                                case maps:get(hp, maps:get(HitId, AccPlayers1)) of
-                                    0 ->
-                                        maps:update_with(
-                                            Owner,
-                                            fun(P) -> P#{kills => maps:get(kills, P) + 1} end,
-                                            AccPlayers1
-                                        );
-                                    _ ->
-                                        AccPlayers1
-                                end;
+    check_collisions(Projs, Players, []).
+
+check_collisions([], Players, AccProjs) ->
+    {AccProjs, Players};
+check_collisions([Proj | Rest], Players, AccProjs) ->
+    case hit_player(Proj, Players) of
+        {hit, HitId, Players1} ->
+            Owner = maps:get(owner, Proj),
+            Players2 =
+                case maps:find(Owner, Players1) of
+                    {ok, #{hp := Hp}} when Hp > 0 ->
+                        case maps:get(hp, maps:get(HitId, Players1)) of
+                            0 ->
+                                maps:update_with(
+                                    Owner,
+                                    fun(P) -> P#{kills => maps:get(kills, P) + 1} end,
+                                    Players1
+                                );
                             _ ->
-                                AccPlayers1
-                        end,
-                    {AccProjs, AccPlayers2};
-                miss ->
-                    {[Proj | AccProjs], AccPlayers}
-            end
-        end,
-        {[], Players},
-        Projs
-    ).
+                                Players1
+                        end;
+                    _ ->
+                        Players1
+                end,
+            check_collisions(Rest, Players2, AccProjs);
+        miss ->
+            check_collisions(Rest, Players, [Proj | AccProjs])
+    end.
 
 hit_player(#{x := Px, y := Py, owner := Owner}, Players) ->
     HitRadius = ?PLAYER_RADIUS + ?PROJECTILE_RADIUS,
@@ -238,21 +240,9 @@ should_finish(_, _, _) ->
     false.
 
 build_result(Players) ->
-    Sorted = lists:sort(
-        fun({_, A}, {_, B}) ->
-            maps:get(kills, A) > maps:get(kills, B)
-        end,
-        maps:to_list(Players)
-    ),
-    Standings = [
-        #{
-            player_id => Id,
-            kills => maps:get(kills, P),
-            deaths => maps:get(deaths, P),
-            rank => Rank
-        }
-     || {Rank, {Id, P}} <- lists:enumerate(Sorted)
-    ],
+    PlayerList = maps:to_list(Players),
+    Sorted = sort_by_kills(PlayerList),
+    Standings = build_standings(Sorted, 1, []),
     #{
         status => ~"completed",
         standings => Standings,
@@ -262,6 +252,25 @@ build_result(Players) ->
                 [] -> undefined
             end
     }.
+
+sort_by_kills(PlayerList) ->
+    lists:sort(
+        fun({_, #{kills := KillsA}}, {_, #{kills := KillsB}}) ->
+            KillsA > KillsB
+        end,
+        PlayerList
+    ).
+
+build_standings([], _Rank, Acc) ->
+    lists:reverse(Acc);
+build_standings([{Id, #{kills := Kills, deaths := Deaths}} | Rest], Rank, Acc) ->
+    Standing = #{
+        player_id => Id,
+        kills => Kills,
+        deaths => Deaths,
+        rank => Rank
+    },
+    build_standings(Rest, Rank + 1, [Standing | Acc]).
 
 clamp(V, Min, _Max) when V < Min -> Min;
 clamp(V, _Min, Max) when V > Max -> Max;

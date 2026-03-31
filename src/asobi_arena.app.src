@@ -13,5 +13,5 @@
     {env, []},
     {modules, []},
     {licenses, ["Apache-2.0"]},
-    {links, [{"GitHub", "https://github.com/widgrensit/asobi-arena"}]}
+    {links, [{"GitHub", "https://github.com/widgrensit/asobi_arena"}]}
 ]}.
