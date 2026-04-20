@@ -17,3 +17,7 @@ _build
 *.iml
 rebar3.crashdump
 *~
+
+# Frontend build artefacts — built from priv/static/src via `npm run build`.
+priv/static/node_modules/
+priv/static/dist/

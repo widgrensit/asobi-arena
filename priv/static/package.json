@@ -1,0 +1,12 @@
+{
+  "name": "asobi-arena-client",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outfile=dist/bundle.js --sourcemap",
+    "watch": "esbuild src/main.ts --bundle --outfile=dist/bundle.js --sourcemap --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}
