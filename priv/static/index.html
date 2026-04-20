@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asobi Arena</title>
+  <style>
+    @font-face {
+      font-family: 'Space Grotesk';
+      src: url('https://fonts.gstatic.com/s/spacegrotesk/v16/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2') format('woff2');
+      font-weight: 400 700;
+      font-display: swap;
+    }
+    :root {
+      --primary: #c9beff;
+      --primary-container: #5f41d8;
+      --secondary: #91cdff;
+      --tertiary: #4ae183;
+      --error: #ffb4ab;
+      --surface: #101320;
+      --surface-lowest: #0a0d1b;
+      --surface-container: #1c1f2d;
+      --surface-container-high: #262938;
+      --surface-highest: #313443;
+      --on-surface: #e0e1f5;
+      --on-surface-variant: #c9c4d7;
+      --text-muted: #938ea0;
+      --outline-variant: #484554;
+      --radius-md: 0.75rem;
+      --radius-lg: 1rem;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--surface);
+      color: var(--on-surface);
+      font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #app {
+      position: relative;
+      width: 900px;
+      height: 650px;
+    }
+    canvas {
+      border: 2px solid var(--outline-variant);
+      border-radius: var(--radius-md);
+      display: none;
+    }
+    .screen {
+      display: none;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .screen.active { display: flex; }
+    h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 1.5rem;
+      color: var(--primary);
+    }
+    input {
+      padding: 10px 16px;
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-md);
+      background: var(--surface-container);
+      color: var(--on-surface);
+      font-size: 1rem;
+      font-family: inherit;
+      width: 260px;
+    }
+    input:focus { outline: none; border-color: var(--primary); }
+    button {
+      padding: 10px 24px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--primary), var(--primary-container));
+      color: #1b0062;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 0 24px rgba(201, 190, 255, 0.2);
+    }
+    button:hover { transform: scale(1.02); box-shadow: 0 0 32px rgba(201, 190, 255, 0.3); }
+    button:disabled { background: var(--surface-highest); color: var(--text-muted); cursor: not-allowed; box-shadow: none; transform: none; }
+    .btn-secondary {
+      background: var(--surface-container-high);
+      color: #fff;
+      outline: 1px solid var(--outline-variant);
+      box-shadow: none;
+    }
+    .btn-secondary:hover { background: var(--surface-highest); }
+    .error { color: var(--error); font-size: 0.9rem; }
+    .subtle { color: var(--text-muted); font-size: 0.9rem; }
+    .btn-row { display: flex; gap: 8px; }
+
+    .boon-cards { display: flex; gap: 12px; margin: 16px 0; }
+    .boon-card {
+      background: var(--surface-container);
+      border: 2px solid var(--outline-variant);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      width: 180px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .boon-card:hover { border-color: var(--primary); transform: translateY(-4px); }
+    .boon-card.selected { border-color: var(--primary-container); background: rgba(95, 65, 216, 0.2); }
+    .boon-card h3 { color: var(--primary); margin-bottom: 8px; }
+    .boon-card p { color: var(--on-surface-variant); font-size: 0.85rem; }
+
+    .vote-options { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; justify-content: center; }
+    .vote-option {
+      background: var(--surface-container);
+      border: 2px solid var(--outline-variant);
+      border-radius: var(--radius-lg);
+      padding: 12px 16px;
+      min-width: 140px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      position: relative;
+    }
+    .vote-option:hover { border-color: var(--primary); }
+    .vote-option.voted { border-color: var(--primary); background: rgba(95, 65, 216, 0.2); }
+    .vote-bar {
+      position: absolute;
+      bottom: 0; left: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      transition: width 0.3s;
+    }
+
+    .standings { width: 100%; max-width: 400px; }
+    .standings table { width: 100%; border-collapse: collapse; }
+    .standings th, .standings td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--outline-variant);
+    }
+    .standings th { color: var(--primary); }
+    .standings .me { color: var(--tertiary); font-weight: bold; }
+
+    .timer {
+      font-size: 1.2rem;
+      color: var(--secondary);
+      font-weight: bold;
+    }
+    .countdown-number {
+      font-size: 6rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: pulse 1s ease-in-out;
+    }
+    .outcome-text {
+      font-size: 3.5rem;
+      font-weight: 700;
+      animation: fadeScale 0.5s ease-out;
+    }
+    .outcome-victory {
+      background: linear-gradient(135deg, var(--tertiary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .outcome-defeat {
+      background: linear-gradient(135deg, var(--error), #ff6b6b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.5); opacity: 0; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes fadeScale {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="login-screen" class="screen active">
+      <h1>Asobi Arena</h1>
+      <p class="subtle">Naval battle arena</p>
+      <input id="username" type="text" placeholder="Username" autocomplete="off">
+      <input id="password" type="password" placeholder="Password">
+      <div class="btn-row">
+        <button id="login-btn">Login</button>
+        <button id="register-btn" class="btn-secondary">Register</button>
+      </div>
+      <p id="auth-error" class="error"></p>
+    </div>
+
+    <div id="queue-screen" class="screen">
+      <h2>Welcome, <span id="display-name"></span></h2>
+      <button id="queue-btn">Find Match</button>
+      <p id="queue-status" class="subtle"></p>
+      <button id="cancel-queue-btn" class="btn-secondary" style="display:none">Cancel</button>
+    </div>
+
+    <div id="countdown-screen" class="screen">
+      <div id="countdown-number" class="countdown-number"></div>
+    </div>
+
+    <div id="outcome-screen" class="screen">
+      <div id="outcome-text" class="outcome-text"></div>
+    </div>
+
+    <canvas id="game-canvas" width="800" height="600"></canvas>
+
+    <div id="boon-screen" class="screen">
+      <h2>Choose Your Upgrade</h2>
+      <p class="timer" id="boon-timer"></p>
+      <div id="boon-cards" class="boon-cards"></div>
+      <div id="boon-waiting" class="subtle"></div>
+    </div>
+
+    <div id="vote-screen" class="screen">
+      <h2>Vote: Next Arena Modifier</h2>
+      <p class="timer" id="vote-timer"></p>
+      <div id="vote-options" class="vote-options"></div>
+    </div>
+
+    <div id="results-screen" class="screen">
+      <h2>Match Over</h2>
+      <div id="results-standings" class="standings"></div>
+      <p id="results-next" class="subtle"></p>
+    </div>
+  </div>
+  <script src="/dist/bundle.js"></script>
+</body>
+</html>
